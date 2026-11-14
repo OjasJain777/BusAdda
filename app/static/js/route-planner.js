@@ -319,7 +319,8 @@ export class RoutePlanner {
         }
       });
     });
-    actions.append(save, clear, start, status);
+    if (document.querySelector(".account")) actions.append(save);
+    actions.append(clear, start, status);
     this.panel.replaceChildren(top, details, actions);
     this.panel.hidden = false;
   }

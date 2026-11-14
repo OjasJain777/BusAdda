@@ -13,7 +13,7 @@ from tests.helpers import api_change, csrf, post_form, register_and_sign_in, sig
 def test_signup_login_logout_and_duplicate_email(app, client, email):
     assert signup(client, email).status_code == 302
     assert client.get("/login").data.find(b"Account created.") >= 0
-    assert client.get("/plan").status_code == 302
+    assert client.get("/plan").status_code == 200
     with app.app_context():
         user = db.session.scalar(select(User).where(User.email == email))
         assert user.password_hash != "NightBus-123"
@@ -36,10 +36,10 @@ def test_signup_login_logout_and_duplicate_email(app, client, email):
         assert rider.get("/profile").status_code == 200
         captured = rider.get_cookie("session").value
         assert post_form(rider, "/logout").status_code == 302
-        assert rider.get("/plan").status_code == 302
+        assert rider.get("/profile").status_code == 302
     old_browser = restarted.test_client()
     old_browser.set_cookie("session", captured)
-    assert old_browser.get("/api/network").status_code == 401
+    assert old_browser.get("/api/saved").status_code == 401
     with restarted.app_context():
         user = db.session.scalar(select(User).where(User.email == email))
         assert db.session.scalar(select(AuthSession).where(AuthSession.user_id == user.id)) is None
@@ -47,22 +47,26 @@ def test_signup_login_logout_and_duplicate_email(app, client, email):
 
 def test_rejects_invalid_fields_and_missing_csrf(client, email):
     assert client.post("/demo").status_code == 404
-    assert client.get("/").location.endswith("/login")
+    assert b'data-view="plan"' in client.get("/").data
     assert client.post("/login", data={"email": email}).status_code == 400
-    for path in ("/plan", "/routes", "/buses", "/stops", "/saved", "/profile"):
+    for path in ("/saved", "/profile"):
         assert client.get(path).location.endswith("/login")
     with client.session_transaction() as session:
         session["demo"] = True
-    assert client.get("/api/network").status_code == 401
+    assert client.get("/api/network").status_code == 200
     assert client.get("/api/saved").status_code == 401
-    assert client.get("/routes").location.endswith("/login")
+    assert client.get("/routes").status_code == 200
     headers = {"X-CSRFToken": csrf(client, "/login")}
-    assert client.post("/api/route", json={}, headers=headers).status_code == 401
+    source, destination = client.get("/api/network").json["presets"][0]
+    for mode in ("shortest", "interchanges"):
+        payload = {"source": source, "destination": destination, "mode": mode}
+        assert client.post("/api/route", json=payload, headers=headers).status_code == 200
+    assert client.post("/api/saved", json=payload, headers=headers).status_code == 401
     assert client.delete("/api/saved/1", headers=headers).status_code == 401
     assert signup(client, email, "weak").status_code == 400
     assert post_form(client, "/signup", name="Valid Name", email=email, password="NightBus-123",
                      confirmation="Contrast-123").status_code == 400
-    assert client.get("/api/network").status_code == 401
+    assert client.get("/api/network").status_code == 200
 
 
 def test_seed_reproducibility_foreign_keys_and_coverage(app):

@@ -8,18 +8,20 @@
   <button id="nav-toggle" class="icon-button" type="button" aria-label="Toggle navigation" aria-expanded="false" aria-controls="main-nav">{{ icon("menu", 22) }}</button>
   <nav id="main-nav" aria-label="Main navigation">
     {% for key, glyph in [('plan','route'),('buses','bus'),('routes','layers'),('saved','bookmark')] %}
-    <a href="/{{ key }}" {% if view == key %}aria-current="page"{% endif %}>{{ icon(glyph, 18) }}<span>{{ "Routes" if key == "routes" else pages[key] }}</span></a>
+    {% if key != 'saved' or current_user.is_authenticated %}<a href="/{{ key }}" {% if view == key %}aria-current="page"{% endif %}>{{ icon(glyph, 18) }}<span>{{ "Routes" if key == "routes" else pages[key] }}</span></a>{% endif %}
     {% endfor %}
   </nav>
   <div class="header-actions">
     <button class="icon-button theme-button" type="button" data-theme-toggle aria-label="Switch theme">{{ icon('sun', 19) }}{{ icon('moon', 19) }}</button>
+    {% if current_user.is_authenticated %}
     <details class="account">
       <summary aria-label="Account"><span class="avatar">{{ current_user.full_name[0]|upper }}</span><span class="account-name">{{ current_user.full_name.split()[0] }}</span>{{ icon('chevron', 14) }}</summary>
       <div class="account-menu"><a href="/profile">{{ icon('user',17) }} Profile</a><a href="/stops">{{ icon("pin",17) }} Bus Stops</a><form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">{{ icon('logout',17) }} Log out</button></form></div>
     </details>
+    {% else %}<a class="button secondary" href="/login">Sign in</a>{% endif %}
   </div>
 </header>
-{% if config.BUSADDA_STORAGE == "memory" %}
+{% if current_user.is_authenticated and config.BUSADDA_STORAGE == "memory" %}
 <p class="demo-note demo-notice" role="note">Temporary demo · Accounts and saved routes can reset.</p>
 {% endif %}
 <main class="dashboard {{ 'standalone' if view in ['saved','profile'] }}" data-view="{{ view }}">

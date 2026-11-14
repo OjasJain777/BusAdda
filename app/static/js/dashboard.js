@@ -380,10 +380,10 @@ navToggle.addEventListener("click", () => {
   navToggle.setAttribute("aria-expanded", String(navToggle.getAttribute("aria-expanded") !== "true"));
 });
 document.addEventListener("click", (event) => {
-  if (!menu.contains(event.target)) menu.open = false;
+  if (menu && !menu.contains(event.target)) menu.open = false;
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && menu.open) {
+  if (event.key === "Escape" && menu?.open) {
     menu.open = false;
     menu.querySelector("summary").focus();
   }

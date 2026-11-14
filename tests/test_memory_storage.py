@@ -12,7 +12,7 @@ def test_database_free_demo_account_and_routes():
     assert "sqlalchemy" not in app.extensions
     rider = app.test_client()
     assert b"Temporary demo" in rider.get("/login").data
-    assert rider.get("/api/network").status_code == 401
+    assert rider.get("/api/saved").status_code == 401
     email = "memory-test@example.com"
     register_and_sign_in(rider, email)
     with app.app_context():
@@ -47,7 +47,7 @@ def test_database_free_demo_account_and_routes():
     old_cookie = rider.get_cookie("session").value
     assert post_form(rider, "/logout").status_code == 302
     rider.set_cookie("session", old_cookie)
-    assert rider.get("/api/network").status_code == 401
+    assert rider.get("/api/saved").status_code == 401
     assert sign_in(rider, email).status_code == 302
     assert api_change(rider, "DELETE", f"/api/saved/{route_id}").status_code == 204
 

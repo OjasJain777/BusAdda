@@ -27,12 +27,17 @@ def access(view):
 
 @web.get("/")
 def index():
-    return redirect(url_for("web.page", view="plan") if current_user.is_authenticated else url_for("auth.credentials"))
+    return page("plan")
 
 
-@web.get("/<any(plan,buses,routes,stops,saved,profile):view>")
-@access
+@web.get("/<any(plan,buses,routes,stops):view>")
 def page(view):
+    return render_template("dashboard.html", view=view, title=PAGES[view], pages=PAGES)
+
+
+@web.get("/<any(saved,profile):view>")
+@access
+def account_page(view):
     profile = None
     if view == "profile" and current_user.is_authenticated:
         profile = {
@@ -44,7 +49,6 @@ def page(view):
 
 
 @api.get("/network")
-@access
 def network():
     return jsonify(**get_network().payload, now=int(time() * 1000))
 
@@ -61,7 +65,6 @@ def journey_parameters(data, graph):
 
 
 @api.post("/route")
-@access
 def route():
     data = request.get_json(silent=True)
     graph = get_network().graph
