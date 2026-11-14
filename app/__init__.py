@@ -8,9 +8,10 @@ from flask_migrate import Migrate
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import CSRFError
 
-from .models import AuthSession, User, db, utc_now
+from .models import db
+from .network import NetworkCache, load_demo_network
 from .session_security import session_token_hash
-from .network import NetworkCache
+from .storage import MemoryStore, SQLStore, get_store
 
 login = LoginManager()
 csrf = CSRFProtect()
@@ -22,10 +23,7 @@ def load_user(user_id):
     token_hash = session_token_hash()
     if not user_id.isdecimal() or token_hash is None:
         return None
-    record = db.session.get(AuthSession, token_hash)
-    if record is None or record.user_id != int(user_id) or record.expires_at <= utc_now():
-        return None
-    return db.session.get(User, record.user_id)
+    return get_store().authenticated_user(token_hash, int(user_id))
 
 
 def create_app(config=None):
@@ -34,6 +32,7 @@ def create_app(config=None):
     secure = os.environ.get("SESSION_COOKIE_SECURE") == "1"
     app.config.from_mapping(
         SECRET_KEY=os.environ.get("SECRET_KEY"),
+        BUSADDA_STORAGE=os.environ.get("BUSADDA_STORAGE", "mysql"),
         SQLALCHEMY_DATABASE_URI=os.environ.get("DATABASE_URL"),
         SQLALCHEMY_ENGINE_OPTIONS={"pool_pre_ping": True},
         SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_SECURE=secure,
@@ -44,19 +43,31 @@ def create_app(config=None):
     )
     if config is not None:
         app.config.update(config)
-    if not app.config["SECRET_KEY"] or not app.config["SQLALCHEMY_DATABASE_URI"]:
-        raise RuntimeError("Set SECRET_KEY and DATABASE_URL in .env before running BusAdda.")
+    storage = app.config["BUSADDA_STORAGE"]
+    if storage not in {"memory", "mysql"}:
+        raise RuntimeError("BUSADDA_STORAGE must be mysql or memory.")
+    if not app.secret_key:
+        raise RuntimeError("Set SECRET_KEY before running BusAdda.")
 
-    db.init_app(app)
+    if storage == "mysql":
+        if not app.config["SQLALCHEMY_DATABASE_URI"]:
+            raise RuntimeError("Set DATABASE_URL or choose BUSADDA_STORAGE=memory.")
+        db.init_app(app)
+        migrate.init_app(app, db)
+        from scripts.seed_database import seed_command
+
+        app.cli.add_command(seed_command)
+        app.extensions["busadda_store"] = SQLStore()
+        app.extensions["bus_network"] = NetworkCache()
+    else:
+        app.extensions["busadda_store"] = MemoryStore()
+        app.extensions["bus_network"] = NetworkCache(load_demo_network)
+
     login.init_app(app)
     csrf.init_app(app)
-    migrate.init_app(app, db)
-    app.extensions["bus_network"] = NetworkCache()
-    from scripts.seed_database import seed_command
     from .auth import auth
     from .views import api, web
 
-    app.cli.add_command(seed_command)
     app.register_blueprint(auth)
     app.register_blueprint(web)
     app.register_blueprint(api)

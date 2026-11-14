@@ -25,7 +25,8 @@ def app(tmp_path_factory):
         pytest.fail("Use a dedicated database named busadda_test for integration tests.")
     if not url:
         url = f"sqlite:///{tmp_path_factory.mktemp('db') / 'test.sqlite3'}"
-    app = create_app({"TESTING": True, "SECRET_KEY": "tests-only", "SQLALCHEMY_DATABASE_URI": url})
+    app = create_app({"TESTING": True, "SECRET_KEY": "tests-only",
+                      "BUSADDA_STORAGE": "mysql", "SQLALCHEMY_DATABASE_URI": url})
     with app.app_context():
         upgrade(directory=str(Path(__file__).resolve().parents[1] / "migrations"))
         seed_network()

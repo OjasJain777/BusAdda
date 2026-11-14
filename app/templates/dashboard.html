@@ -19,6 +19,9 @@
     </details>
   </div>
 </header>
+{% if config.BUSADDA_STORAGE == "memory" %}
+<p class="demo-note demo-notice" role="note">Temporary demo · Accounts and saved routes can reset.</p>
+{% endif %}
 <main class="dashboard {{ 'standalone' if view in ['saved','profile'] }}" data-view="{{ view }}">
 {% if view in ['plan','buses','routes','stops'] %}
   <button class="button secondary mobile-drawer" id="drawer-toggle" type="button" aria-expanded="false" aria-controls="sidebar">{{ icon('layers', 18) }} {{ title }} {{ icon('chevron', 17) }}</button>

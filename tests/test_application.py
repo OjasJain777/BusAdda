@@ -27,6 +27,7 @@ def test_signup_login_logout_and_duplicate_email(app, client, email):
 
     restarted = create_app({
         "TESTING": True,
+        "BUSADDA_STORAGE": "mysql",
         "SECRET_KEY": app.secret_key,
         "SQLALCHEMY_DATABASE_URI": app.config["SQLALCHEMY_DATABASE_URI"],
     })

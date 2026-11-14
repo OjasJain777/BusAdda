@@ -22,9 +22,14 @@ All stop coordinates, routes, travel times, vehicle positions and route numbers 
 
 [Sign-in screen](docs/sign-in.jpg) · [Routes explorer](docs/routes.jpg)
 
+## Storage modes
+
+- **MySQL** is the default. It persists accounts, sessions, and saved routes, and loads the transit network from the seeded database. The SQLAlchemy models and Alembic migrations below are used in this mode.
+- **In-memory demo** uses Python dictionaries for accounts, sessions, and saved routes. The transit graph is built directly from the bundled demo data. Data is local to a single process. On Vercel, a different instance or a cold start can make an account or saved route unavailable even without a redeploy. Use throwaway credentials. For a walkthrough, describe the hosted build as an in-memory demo and MySQL as the persistent storage option.
+
 ## Run locally
 
-Requirements are **Python 3.11+** and **MySQL 8+**. The app runs on Windows, macOS and Linux. All runtime assets, including the map and Inter typeface, are served locally. Internet access is only needed to install dependencies.
+Requirements are **Python 3.11+** and, for persistent storage, **MySQL 8+**. The app runs on Windows, macOS and Linux. All runtime assets, including the map and Inter typeface, are served locally. Internet access is only needed to install dependencies.
 
 1. Clone the repository and enter its root directory.
 
@@ -87,10 +92,25 @@ Requirements are **Python 3.11+** and **MySQL 8+**. The app runs on Windows, mac
 
 Import this repository into Vercel, select the **Flask** framework preset, and use the repository root. Keep the default install and build settings. `pyproject.toml` points to `run:app`, and the Vercel build stages `app/static/` under `public/static/` to keep the existing asset URLs.
 
+### Temporary demo without a database
+
+In the Vercel project's **Environment Variables**, set these values for Production.
+
+| Variable | Value |
+| --- | --- |
+| `BUSADDA_STORAGE` | `memory` |
+| `SECRET_KEY` | Generate with `python -c "import secrets; print(secrets.token_hex(32))"`. |
+| `SESSION_COOKIE_SECURE` | `1` |
+
+Deploy or redeploy after adding these values. Memory mode starts from the bundled network and requires no `DATABASE_URL`, migrations, or seeding commands. For a local demo, use the same settings in `.env`, set `SESSION_COOKIE_SECURE=0`, and run `python -m flask --app run run`.
+
+### Persistent MySQL deployment
+
 Provision a hosted MySQL 8 database reachable from Vercel. In the Vercel project's **Environment Variables**, set these values for Production.
 
 | Variable | Value |
 | --- | --- |
+| `BUSADDA_STORAGE` | `mysql` |
 | `DATABASE_URL` | The hosted database's SQLAlchemy URL using `mysql+pymysql://`. Use your provider's TLS settings and percent-encode reserved characters in the password. |
 | `SECRET_KEY` | A fresh random value from `python -c "import secrets; print(secrets.token_hex(32))"`. |
 | `SESSION_COOKIE_SECURE` | `1` for Vercel HTTPS. |
@@ -161,7 +181,7 @@ The stack is Flask, Flask-SQLAlchemy, Flask-Migrate, Flask-Login, Flask-WTF, Wer
 | `saved_routes` | User and two stop foreign keys. One row per user, stop pair and routing mode. |
 | `simulation_vehicles` | Seeded start time, progress, direction and speed. Indexed by service. |
 
-A signed HTTP-only cookie carries the session token, which Flask validates against the corresponding MySQL row. Writes use CSRF protection, and saved-route queries are scoped to the signed-in user. Seeding is transactional and repeatable on a migrated database.
+A signed HTTP-only cookie carries the session token. Flask validates it against the configured store. Writes use CSRF protection, and saved-route queries are scoped to the signed-in user. Seeding is transactional and repeatable on a migrated database.
 
 ## Tests
 

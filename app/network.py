@@ -1,6 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import timezone
+from datetime import datetime, timezone
 from threading import Lock
 
 from flask import current_app
@@ -25,7 +25,8 @@ class Network:
 
 
 class NetworkCache:
-    def __init__(self):
+    def __init__(self, loader=None):
+        self.loader = loader or load_network
         self.snapshot = None
         self.lock = Lock()
 
@@ -33,7 +34,7 @@ class NetworkCache:
         if self.snapshot is None:
             with self.lock:
                 if self.snapshot is None:
-                    network = load_network()
+                    network = self.loader()
                     if network.graph.stops:
                         self.snapshot = network
                     return network
@@ -65,6 +66,41 @@ def load_network():
     for row in db.session.scalars(statement):
         if row.service_id in services:
             sequences[row.service_id, row.direction].append(row.stop_id)
+    vehicles = [{
+        "id": row.id, "service": row.service_id, "label": row.vehicle_label, "progress": row.initial_progress,
+        "speed": row.speed_kmph, "direction": row.direction,
+        "start": row.simulation_start.replace(tzinfo=timezone.utc).timestamp() * 1000,
+    } for row in db.session.scalars(select(SimulationVehicle).order_by(SimulationVehicle.id))
+        if (row.service_id, row.direction) in sequences]
+    return build_network(stops, services, sequences, vehicles)
+
+
+def load_demo_network():
+    from scripts.network_data import PALETTE, dataset
+
+    stop_rows, corridors = dataset()
+    keys = {key: sid for sid, (key, *_) in enumerate(stop_rows, 1)}
+    stops = {
+        keys[key]: {"id": keys[key], "name": name, "locality": area, "lat": float(lat), "lon": float(lon)}
+        for key, name, area, lat, lon in stop_rows
+    }
+    services, sequences, vehicles = {}, {}, []
+    start = datetime(2025, 1, 1, tzinfo=timezone.utc).timestamp() * 1000
+    for sid, (number, region, route) in enumerate(corridors, 1):
+        sequence = [keys[key] for key in route]
+        name = f"{stops[sequence[0]]['name']} → {stops[sequence[-1]]['name']}"
+        speed = 22 + sid % 6
+        services[sid] = {"id": sid, "number": number, "name": name, "color": PALETTE[sid - 1],
+                         "region": region, "speed": speed}
+        sequences[sid, 0] = sequence
+        sequences[sid, 1] = sequence[::-1]
+        vehicles.append({"id": sid, "service": sid, "label": f"{number}-A",
+                         "progress": (sid * 0.137) % 1, "speed": speed, "direction": sid % 2,
+                         "start": start})
+    return build_network(stops, services, sequences, vehicles)
+
+
+def build_network(stops, services, sequences, vehicles):
     graph = Graph(stops, services, sequences)
     for sid, stop in stops.items():
         stop["services"] = sorted({state[1] for state in graph.states.get(sid, ())})
@@ -84,12 +120,6 @@ def load_network():
             "km": round(sum(distances), 2), "minutes": round(minutes),
         }
     network_services = [dict(service, directions=directions[sid]) for sid, service in services.items()]
-    vehicles = [{
-        "id": row.id, "service": row.service_id, "label": row.vehicle_label, "progress": row.initial_progress,
-        "speed": row.speed_kmph, "direction": row.direction,
-        "start": row.simulation_start.replace(tzinfo=timezone.utc).timestamp() * 1000,
-    } for row in db.session.scalars(select(SimulationVehicle).order_by(SimulationVehicle.id))
-        if (row.service_id, row.direction) in sequences]
     by_name = {stop["name"]: stop["id"] for stop in stops.values()}
     presets = [[by_name[a], by_name[b]] for a, b in PRESETS if a in by_name and b in by_name]
     return Network(graph, {

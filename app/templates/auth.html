@@ -32,6 +32,9 @@
       <button class="icon-button theme-button" type="button" data-theme-toggle aria-label="Switch theme">{{ icon('sun') }}{{ icon('moon') }}</button>
     </div>
     <div class="auth-card">
+      {% if config.BUSADDA_STORAGE == "memory" %}
+      <p class="demo-note" role="note"><strong>Temporary demo.</strong> Use test credentials. Accounts and saved routes can reset.</p>
+      {% endif %}
       <h2>{{ 'Create an account' if signup else 'Sign in to BusAdda' }}</h2>
       <p class="muted">{{ 'Save your journeys and revisit them anytime.' if signup else 'Sign in to plan and save your bus journeys.' }}</p>
       <div class="auth-tabs">

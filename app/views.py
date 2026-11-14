@@ -4,12 +4,10 @@ from time import time
 
 from flask import Blueprint, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user
-from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
 
 from .journey import MODES, plan
-from .models import SavedRoute, db
 from .network import get_network
+from .storage import get_store
 
 web = Blueprint("web", __name__)
 api = Blueprint("api", __name__, url_prefix="/api")
@@ -40,9 +38,7 @@ def page(view):
         profile = {
             "name": current_user.full_name, "email": current_user.email,
             "joined": current_user.created_at.strftime("%d %B %Y"),
-            "count": db.session.scalar(select(func.count()).select_from(SavedRoute).where(
-                SavedRoute.user_id == current_user.id
-            )),
+            "count": get_store().count_saved(current_user.id),
         }
     return render_template("dashboard.html", view=view, title=PAGES[view], profile=profile, pages=PAGES)
 
@@ -88,10 +84,9 @@ def route_record(row):
 @api.route("/saved", methods=["GET", "POST"])
 @access
 def saved():
-    owned = select(SavedRoute).where(SavedRoute.user_id == current_user.id)
+    store = get_store()
     if request.method == "GET":
-        rows = db.session.scalars(owned.order_by(SavedRoute.created_at.desc(), SavedRoute.id.desc()))
-        return jsonify(routes=[route_record(row) for row in rows])
+        return jsonify(routes=[route_record(row) for row in store.list_saved(current_user.id)])
     data = request.get_json(silent=True)
     graph = get_network().graph
     params, error = journey_parameters(data if isinstance(data, dict) else {}, graph)
@@ -99,31 +94,13 @@ def saved():
         return jsonify(error=error), 400
     if plan(graph, *params) is None:
         return jsonify(error="This route is currently unavailable."), 404
-    source, target, mode = params
-    existing = owned.where(SavedRoute.source_stop_id == source, SavedRoute.destination_stop_id == target,
-                           SavedRoute.routing_mode == mode)
-    row = db.session.scalar(existing)
-    if row:
-        return jsonify(route=route_record(row)), 200
-    row = SavedRoute(user_id=current_user.id, source_stop_id=source, destination_stop_id=target, routing_mode=mode)
-    db.session.add(row)
-    try:
-        db.session.commit()
-    except IntegrityError:
-        db.session.rollback()
-        row = db.session.scalar(existing)
-        if row is None:
-            raise
-        return jsonify(route=route_record(row)), 200
-    return jsonify(route=route_record(row)), 201
+    row, created = store.save_route(current_user.id, *params)
+    return jsonify(route=route_record(row)), 201 if created else 200
 
 
 @api.delete("/saved/<int:route_id>")
 @access
 def delete_saved(route_id):
-    row = db.session.scalar(select(SavedRoute).where(SavedRoute.id == route_id, SavedRoute.user_id == current_user.id))
-    if row is None:
+    if not get_store().delete_saved(current_user.id, route_id):
         return jsonify(error="Saved route not found."), 404
-    db.session.delete(row)
-    db.session.commit()
     return "", 204

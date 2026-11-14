@@ -253,3 +253,16 @@ img {
     scroll-behavior: auto !important;
   }
 }
+
+.demo-note {
+  color: var(--muted);
+  font-size: .78rem;
+  line-height: 1.4;
+  margin: 0 0 .7rem;
+}
+.demo-notice {
+  margin: 0;
+  padding: .35rem 1rem;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}

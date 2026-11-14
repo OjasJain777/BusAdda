@@ -3,12 +3,11 @@ from datetime import timedelta
 
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_user, logout_user
-from sqlalchemy import delete, select
-from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from .models import AuthSession, User, db, utc_now
+from .models import utc_now
 from .session_security import create_session_token, session_token_hash
+from .storage import get_store
 
 auth = Blueprint("auth", __name__)
 DUMMY_HASH = generate_password_hash("dummy-password-for-timing")
@@ -46,22 +45,14 @@ def credentials():
                     error = "Enter a valid email address."
                 else:
                     email = normalized
-            if not error and db.session.scalar(select(User.id).where(User.email == email)) is not None:
-                error = "An account already exists for this email."
             if not error:
-                user = User(full_name=name, email=email, password_hash=generate_password_hash(password))
-                db.session.add(user)
-                try:
-                    db.session.commit()
-                except IntegrityError:
-                    db.session.rollback()
-                    error = "An account already exists for this email."
-                else:
+                if get_store().create_user(name, email, generate_password_hash(password)):
                     flash("Account created. Sign in with your new credentials.", "success")
                     return redirect(url_for("auth.credentials"))
+                error = "An account already exists for this email."
         else:
             normalized = normalized_email(email)
-            user = db.session.scalar(select(User).where(User.email == normalized)) if normalized else None
+            user = get_store().find_user(normalized) if normalized else None
             valid_password = len(password) <= 128 and check_password_hash(
                 user.password_hash if user else DUMMY_HASH, password
             )
@@ -74,11 +65,8 @@ def credentials():
 def sign_in(user, remember=False):
     session.clear()
     token_hash = create_session_token()
-    now = utc_now()
-    db.session.execute(delete(AuthSession).where(AuthSession.expires_at <= now))
-    db.session.add(AuthSession(token_hash=token_hash, user_id=user.id,
-                              expires_at=now + (timedelta(days=14) if remember else timedelta(hours=12))))
-    db.session.commit()
+    duration = timedelta(days=14) if remember else timedelta(hours=12)
+    get_store().add_session(token_hash, user.id, utc_now() + duration)
     login_user(user)
     session.permanent = remember
     session["_remember"] = "clear"
@@ -89,8 +77,7 @@ def sign_in(user, remember=False):
 def logout():
     token_hash = session_token_hash()
     if token_hash:
-        db.session.execute(delete(AuthSession).where(AuthSession.token_hash == token_hash))
-        db.session.commit()
+        get_store().remove_session(token_hash)
     logout_user()
     session.clear()
     session["_remember"] = "clear"
