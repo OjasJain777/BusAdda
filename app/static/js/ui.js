@@ -41,7 +41,11 @@ export async function api(path, method = "GET", body) {
   });
   if (response.status === 204) return null;
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "BusAdda could not complete this request.");
+  if (!response.ok) {
+    const error = new Error(data.error || "BusAdda could not complete this request.");
+    error.status = response.status;
+    throw error;
+  }
   return data;
 }
 

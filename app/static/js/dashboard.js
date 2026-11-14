@@ -362,8 +362,14 @@ async function init() {
     }
   } catch (error) {
     const target = document.querySelector("#map-stats") || document.querySelector("#saved-list");
-    target.textContent = error.message;
     target.hidden = false;
+    if (error.status === 401) {
+      const link = el("a", "button primary", "Return to sign in");
+      link.href = "/login";
+      target.replaceChildren(el("p", null, "Your session ended before the dashboard could load."), link);
+      return;
+    }
+    target.textContent = error.message;
     notify(error.message);
   }
 }
