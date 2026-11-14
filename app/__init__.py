@@ -1,5 +1,6 @@
 import os
 from datetime import timedelta
+from secrets import token_hex
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
@@ -29,10 +30,10 @@ def load_user(user_id):
 def create_app(config=None):
     load_dotenv()
     app = Flask(__name__)
-    secure = os.environ.get("SESSION_COOKIE_SECURE") == "1"
+    secure = os.environ.get("SESSION_COOKIE_SECURE", "1" if os.environ.get("VERCEL") == "1" else "0") == "1"
     app.config.from_mapping(
         SECRET_KEY=os.environ.get("SECRET_KEY"),
-        BUSADDA_STORAGE=os.environ.get("BUSADDA_STORAGE", "mysql"),
+        BUSADDA_STORAGE=os.environ.get("BUSADDA_STORAGE") or None,
         SQLALCHEMY_DATABASE_URI=os.environ.get("DATABASE_URL"),
         SQLALCHEMY_ENGINE_OPTIONS={"pool_pre_ping": True},
         SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_SECURE=secure,
@@ -44,10 +45,15 @@ def create_app(config=None):
     if config is not None:
         app.config.update(config)
     storage = app.config["BUSADDA_STORAGE"]
+    if storage is None:
+        storage = "mysql" if app.config["SQLALCHEMY_DATABASE_URI"] else "memory"
+        app.config["BUSADDA_STORAGE"] = storage
     if storage not in {"memory", "mysql"}:
         raise RuntimeError("BUSADDA_STORAGE must be mysql or memory.")
     if not app.secret_key:
-        raise RuntimeError("Set SECRET_KEY before running BusAdda.")
+        if storage == "mysql":
+            raise RuntimeError("Set SECRET_KEY before running BusAdda with MySQL.")
+        app.secret_key = token_hex(32)
 
     if storage == "mysql":
         if not app.config["SQLALCHEMY_DATABASE_URI"]:

@@ -24,8 +24,8 @@ All stop coordinates, routes, travel times, vehicle positions and route numbers 
 
 ## Storage modes
 
-- **MySQL** is the default. It persists accounts, sessions, and saved routes, and loads the transit network from the seeded database. The SQLAlchemy models and Alembic migrations below are used in this mode.
-- **In-memory demo** uses Python dictionaries for accounts, sessions, and saved routes. The transit graph is built directly from the bundled demo data. Data is local to a single process. On Vercel, a different instance or a cold start can make an account or saved route unavailable even without a redeploy. Use throwaway credentials. For a walkthrough, describe the hosted build as an in-memory demo and MySQL as the persistent storage option.
+- **MySQL** is selected when a database URL is configured. It persists accounts, sessions, and saved routes, and loads the transit network from the seeded database. The SQLAlchemy models and Alembic migrations below are used in this mode.
+- **In-memory demo** is the default without a database URL and uses Python dictionaries for accounts, sessions, and saved routes. The transit graph is built directly from the bundled demo data. Data is local to a single process. On Vercel, a different instance or a cold start can make an account or saved route unavailable even without a redeploy. Use throwaway credentials. For a walkthrough, describe the hosted build as an in-memory demo and MySQL as the persistent storage option.
 
 ## Run locally
 
@@ -94,15 +94,7 @@ Import this repository into Vercel, select the **Flask** framework preset, and u
 
 ### Temporary demo without a database
 
-In the Vercel project's **Environment Variables**, set these values for Production.
-
-| Variable | Value |
-| --- | --- |
-| `BUSADDA_STORAGE` | `memory` |
-| `SECRET_KEY` | Generate with `python -c "import secrets; print(secrets.token_hex(32))"`. |
-| `SESSION_COOKIE_SECURE` | `1` |
-
-Deploy or redeploy after adding these values. Memory mode starts from the bundled network and requires no `DATABASE_URL`, migrations, or seeding commands. For a local demo, use the same settings in `.env`, set `SESSION_COOKIE_SECURE=0`, and run `python -m flask --app run run`.
+Deploy the demo with an empty Environment Variables section. Flask generates a temporary session key per process and uses secure cookies on Vercel. Memory mode uses the bundled network. For the same demo locally, install the dependencies and run `python -m flask --app run run` with no `.env` file.
 
 ### Persistent MySQL deployment
 
