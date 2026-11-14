@@ -1,0 +1,10 @@
+Delhi NCR place names and approximate coordinates are derived from GeoNames.
+Source: https://www.geonames.org/ and https://download.geonames.org/export/dump/IN.zip
+GeoNames data is licensed under Creative Commons Attribution 4.0 International.
+License: https://creativecommons.org/licenses/by/4.0/
+
+This subset filters Delhi NCR features and normalizes selected names and aliases.
+Additional approximate landmark points:
+NSUT Main Campus: https://nsut.ac.in/en/location and https://environmentclearance.nic.in/writereaddata/Online/TOR/08_Jun_2018_192207307K0Q7IZN9report.pdf
+Delhi Airport Terminal 3: https://www.findlatitudeandlongitude.com/l/Terminal%2B3%2BAirport%2BDelhi/4655266/
+Select CITYWALK and DLF Mall of India: https://datagemba.com/b/v/in/delhi/shopping-malls

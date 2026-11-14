@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "icons.html" import icon %}
+{% block title %}{{ 'Create account' if signup else 'Sign in' }} · BusAdda{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">{% endblock %}
+{% block body %}
+<main class="auth-layout">
+  <section class="auth-art" aria-label="BusAdda">
+    <a class="brand" href="{{ url_for('auth.credentials') }}"><img src="{{ url_for('static', filename='mark.svg') }}" alt=""><span>Bus<span class="brand-accent">Adda</span></span></a>
+    <div class="auth-message">
+      <p class="eyebrow">DELHI NCR BUS PLANNER</p>
+      <h1>Navigate Delhi.<br><span>The smarter way.</span></h1>
+      <p>Find the shortest ride or make fewer changes on a simulated network across Delhi NCR.</p>
+    </div>
+    <svg class="auth-network" viewBox="0 0 700 380" role="img" aria-label="Illustrated transit lines connecting stops across Delhi">
+      <defs><pattern id="art-grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="currentColor" opacity=".12"/></pattern></defs>
+      <rect width="700" height="380" fill="url(#art-grid)"/>
+      <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M0 285h91l106-106h92l79-79h130l138-89h64M0 107h127l69 72m171-80 94 94h104l131 112M18 352h200l80-80h93l79-79M494 100l99 80v200" stroke="#53818b" stroke-width="2" opacity=".45"/>
+        <path d="M0 245h116l82-82h102l77-77h130l82 55h111" id="art-route" stroke="#28d6b2" stroke-width="4"/>
+        <path d="M109 380v-135m191-82 80 80h117l104 101h99" stroke="#7d9dfa" stroke-width="3"/>
+        <path d="M377 86v157l-85 85v52m205-137 92-102" stroke="#e9ad63" stroke-width="3"/>
+      </g>
+      <g fill="#0e2633" stroke="#a9f4de" stroke-width="3"><circle cx="116" cy="245" r="6"/><circle cx="198" cy="163" r="6"/><circle cx="300" cy="163" r="8"/><circle cx="377" cy="86" r="8"/><circle cx="507" cy="86" r="6"/><circle cx="589" cy="141" r="6"/><circle cx="380" cy="243" r="6"/><circle cx="497" cy="243" r="6"/></g>
+      <g class="art-label"><text x="65" y="225">DWARKA</text><text x="247" y="143">RAJOURI GARDEN</text><text x="325" y="64">CONNAUGHT PLACE</text><text x="544" y="123">NOIDA</text><text x="361" y="269">AIIMS</text></g>
+      <g class="art-bus"><rect x="-15" y="-15" width="30" height="30" rx="7" fill="#20d6b5"/><use href="{{ url_for('static', filename='icons.svg') }}#bus" x="-10" y="-10" width="20" height="20" fill="none" stroke="#072c28"/><animateMotion dur="15s" repeatCount="indefinite" path="M0 245h116l82-82h102l77-77h130l82 55h111"/></g>
+    </svg>
+    <p class="auth-caption"><span class="availability"></span> Simulated Delhi NCR network</p>
+  </section>
+  <section class="auth-entry">
+    <div class="auth-top">
+      <a class="brand mobile-brand" href="{{ url_for('auth.credentials') }}"><img src="{{ url_for('static', filename='mark.svg') }}" alt=""><span>Bus<span class="brand-accent">Adda</span></span></a>
+      <button class="icon-button theme-button" type="button" data-theme-toggle aria-label="Switch theme">{{ icon('sun') }}{{ icon('moon') }}</button>
+    </div>
+    <div class="auth-card">
+      <h2>{{ 'Create an account' if signup else 'Sign in to BusAdda' }}</h2>
+      <p class="muted">{{ 'Save your journeys and revisit them anytime.' if signup else 'Sign in to plan and save your bus journeys.' }}</p>
+      <div class="auth-tabs">
+        <a href="/login" {{ 'aria-current=page' if not signup }}>Sign in</a>
+        <a href="/signup" {{ 'aria-current=page' if signup }}>Create account</a>
+      </div>
+      {% for category, message in get_flashed_messages(with_categories=true) %}<p class="form-success" role="status">{{ message }}</p>{% endfor %}
+      {% if error %}<div class="form-error" role="alert">{{ error }}</div>{% endif %}
+      <form method="post" class="credentials">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if signup %}<label>Full name<input name="name" autocomplete="name" placeholder="Your full name" value="{{ name }}" minlength="2" maxlength="100" required></label>{% endif %}
+        <label>Email address<input type="email" name="email" autocomplete="email" placeholder="you@example.com" value="{{ email }}" maxlength="254" required></label>
+        <label>Password<span class="password-field"><input name="password" type="password" autocomplete="{{ 'new-password' if signup else 'current-password' }}" placeholder="{{ 'At least 10 characters' if signup else 'Your password' }}" {{ 'minlength=10' if signup }} maxlength="128" required><button type="button" class="icon-button" data-show-password aria-label="Show password" aria-pressed="false">{{ icon('eye', 18) }}</button></span></label>
+        {% if signup %}
+          <label>Confirm password<span class="password-field"><input name="confirmation" type="password" autocomplete="new-password" placeholder="Repeat your password" maxlength="128" required><button type="button" class="icon-button" data-show-password aria-label="Show password" aria-pressed="false">{{ icon('eye', 18) }}</button></span></label>
+        {% else %}<label class="remember"><input name="remember" type="checkbox"> Keep me signed in</label>{% endif %}
+        <button class="button primary" type="submit">{{ 'Create account' if signup else 'Sign in' }} {{ icon('arrow', 18) }}</button>
+      </form>
+    </div>
+  </section>
+</main>
+<script src="{{ url_for('static', filename='js/auth.js') }}" defer></script>
+{% endblock %}

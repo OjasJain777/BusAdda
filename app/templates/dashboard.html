@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% from "icons.html" import icon %}
+{% block title %}{{ title }} · BusAdda{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+{% block body %}
+<header class="app-header">
+  <a class="brand" href="/plan"><img src="{{ url_for('static', filename='mark.svg') }}" alt=""><span>Bus<span class="brand-accent">Adda</span><small>DELHI NCR TRANSIT</small></span></a>
+  <button id="nav-toggle" class="icon-button" type="button" aria-label="Toggle navigation" aria-expanded="false" aria-controls="main-nav">{{ icon("menu", 22) }}</button>
+  <nav id="main-nav" aria-label="Main navigation">
+    {% for key, glyph in [('plan','route'),('buses','bus'),('routes','layers'),('saved','bookmark')] %}
+    <a href="/{{ key }}" {% if view == key %}aria-current="page"{% endif %}>{{ icon(glyph, 18) }}<span>{{ "Routes" if key == "routes" else pages[key] }}</span></a>
+    {% endfor %}
+  </nav>
+  <div class="header-actions">
+    <button class="icon-button theme-button" type="button" data-theme-toggle aria-label="Switch theme">{{ icon('sun', 19) }}{{ icon('moon', 19) }}</button>
+    <details class="account">
+      <summary aria-label="Account"><span class="avatar">{{ current_user.full_name[0]|upper }}</span><span class="account-name">{{ current_user.full_name.split()[0] }}</span>{{ icon('chevron', 14) }}</summary>
+      <div class="account-menu"><a href="/profile">{{ icon('user',17) }} Profile</a><a href="/stops">{{ icon("pin",17) }} Bus Stops</a><form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">{{ icon('logout',17) }} Log out</button></form></div>
+    </details>
+  </div>
+</header>
+<main class="dashboard {{ 'standalone' if view in ['saved','profile'] }}" data-view="{{ view }}">
+{% if view in ['plan','buses','routes','stops'] %}
+  <button class="button secondary mobile-drawer" id="drawer-toggle" type="button" aria-expanded="false" aria-controls="sidebar">{{ icon('layers', 18) }} {{ title }} {{ icon('chevron', 17) }}</button>
+  <aside class="sidebar panel" id="sidebar" aria-label="{{ title }}">
+    {% if view == 'plan' %}
+    <div class="sidebar-intro">
+      <h1>Plan your journey</h1>
+    </div>
+    <form id="route-form">
+      <div class="stop-fields">
+        {% for id, label in [('from', 'From'), ('to', 'To')] %}
+        <div class="stop-picker" data-picker="{{ id }}">
+          <label for="{{ id }}-input">{{ label }}</label>
+          <div class="stop-input"><span class="location-dot {{ id }}"></span><input id="{{ id }}-input" type="text" placeholder="{{ 'Search a place or stop' if id == 'from' else 'Search a destination' }}" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="{{ id }}-suggestions"><button class="icon-button clear-stop" type="button" aria-label="Clear {{ label|lower }} stop" hidden>{{ icon('close', 15) }}</button></div>
+          <small class="nearest-stop-hint" aria-live="polite" hidden></small>
+          <ul class="suggestions" id="{{ id }}-suggestions" role="listbox" hidden></ul>
+        </div>
+        {% endfor %}
+        <button class="icon-button swap-button" type="button" id="swap" aria-label="Swap source and destination" title="Swap stops">{{ icon('swap', 19) }}</button>
+      </div>
+      <fieldset class="route-modes">
+        <legend>Route preference</legend>
+        <div class="mode-options">
+          <label><input type="radio" name="mode" value="shortest" checked><span>{{ icon('bolt', 20) }}<b>Shortest Route</b><small>Least distance</small></span></label>
+          <label><input type="radio" name="mode" value="interchanges"><span>{{ icon('transfer', 20) }}<b>Minimum Interchange</b><small>Fewest bus changes</small></span></label>
+        </div>
+      </fieldset>
+      <button class="button primary find-button" type="submit" id="find-route">{{ icon('search', 19) }} <span>Find Route</span>{{ icon('arrow', 17) }}</button>
+      <span id="route-loading" class="route-loading" role="status"></span>
+      <p id="route-error" class="form-error" role="alert" hidden></p>
+    </form>
+    <details class="quick-section">
+      <summary>Quick routes</summary>
+      <div id="presets" class="presets"></div>
+    </details>
+    {% else %}
+    <div class="sidebar-intro">
+      <h1>{{ title }}</h1>
+      <p>{{ 'Select services to compare their paths.' if view == 'routes' else ('Follow vehicles on the simulated network.' if view == 'buses' else 'Explore stops and the services that connect them.') }}</p>
+    </div>
+    <div class="directory-filters">
+      <label for="directory-search">{{ 'Search by route number or name' if view in ['buses','routes'] else 'Search by stop or locality' }}</label>
+      <div class="search-input">{{ icon('search', 17) }} <input id="directory-search" type="search" placeholder="{{ 'e.g. 727' if view in ['buses','routes'] else 'e.g. Kashmiri Gate' }}"></div>
+      {% if view == 'routes' %}
+      <label for="route-visibility">Route lines</label>
+      <select id="route-visibility">
+        <option value="all">Show All Routes</option><option value="selected">Selected Routes</option><option value="none">Hide Routes</option>
+      </select>
+      <button class="button secondary" id="clear-services" type="button" disabled>Clear Selection</button>
+      {% else %}
+      <label for="region">Region</label>
+      <select id="region"><option value="">All regions</option></select>
+      {% endif %}
+    </div>
+    <div class="directory-list" id="directory" aria-label="{{ title }} list"></div>
+    {% endif %}
+  </aside>
+  <section class="map-column" aria-label="Delhi NCR network">
+    <section class="map-panel panel" aria-label="Interactive Delhi bus map">
+      <div class="map-header">
+        <h2>Delhi NCR</h2>
+        <p class="live-badge"><span class="availability"></span> Simulated network</p>
+      </div>
+      <div class="map-canvas" id="map-canvas">
+        <svg id="map" viewBox="0 0 960 580" role="group" aria-label="Delhi NCR schematic. Use arrow keys to pan and plus or minus to zoom." tabindex="0"></svg>
+        <div class="map-controls">
+          <details class="map-layers">
+            <summary class="icon-button" aria-label="Map layers" title="Map layers">{{ icon('layers', 19) }}</summary>
+            <fieldset>
+              <legend>Map layers</legend>
+              <label><input type="checkbox" data-layer="routes" checked> Route lines</label>
+              <label><input type="checkbox" data-layer="stops" checked> Bus stops</label>
+              <label><input type="checkbox" data-layer="buses" checked> Moving buses</label>
+              <label><input type="checkbox" data-layer="labels" checked> Locality labels</label>
+            </fieldset>
+          </details>
+          <button class="icon-button" type="button" id="zoom-in" aria-label="Zoom in">{{ icon('plus', 19) }}</button>
+          <button class="icon-button" type="button" id="zoom-out" aria-label="Zoom out">{{ icon('minus', 19) }}</button>
+          <button class="icon-button" type="button" id="map-fit" aria-label="Fit selected route" title="Fit selected route" hidden>{{ icon('expand', 19) }}</button>
+          <button class="icon-button" type="button" id="map-reset" aria-label="Reset map view">{{ icon('target', 19) }}</button>
+        </div>
+        <div class="map-info" id="map-info" hidden></div>
+        <button class="button secondary journey-focus-toggle" id="journey-focus" aria-pressed="true" type="button" hidden>{{ icon('route', 16) }} <span>Route focus</span></button>
+        <div class="map-legend" aria-label="Map legend"><span><i class="legend-line"></i> Journey</span><span><i class="legend-stop"></i> Bus stop</span><span><i class="legend-transfer"></i> Interchange</span></div>
+      </div>
+      <p class="map-load-status" id="map-stats" role="status">Loading network…</p>
+    </section>
+    {% if view == 'plan' %}
+    <section id="journey-panel" class="journey panel" aria-label="Journey details" hidden></section>
+    {% endif %}
+  </section>
+{% elif view == 'saved' %}
+  <section class="content-section">
+    <div class="section-icon">{{ icon('bookmark', 24) }}</div><h1>Saved routes</h1><p class="muted">Reopen or recalculate your regular bus journeys.</p>
+    <div id="saved-list" class="saved-grid" aria-live="polite"></div>
+  </section>
+{% elif view == 'profile' %}
+  <section class="content-section">
+    <div class="section-icon">{{ icon('user', 24) }}</div><h1>{{ profile.name }}</h1>
+    <div class="panel profile-panel">
+      <dl><div><dt>Email</dt><dd>{{ profile.email }}</dd></div><div><dt>Member since</dt><dd>{{ profile.joined }}</dd></div><div><dt>Saved routes</dt><dd>{{ profile.count }}</dd></div><div><dt>Theme</dt><dd data-theme-name></dd></div></dl>
+      <form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="button secondary">{{ icon('logout', 17) }} Log out</button></form>
+    </div>
+  </section>
+{% endif %}
+<div class="toast" id="toast" role="status" hidden></div>
+</main>
+<script type="module" src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
