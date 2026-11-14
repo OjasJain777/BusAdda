@@ -83,6 +83,27 @@ Requirements are **Python 3.11+** and **MySQL 8+**. The app runs on Windows, mac
 
    For a production-grade local WSGI server, run `waitress-serve --listen=127.0.0.1:5000 run:app`.
 
+### Deploy on Vercel
+
+Import this repository into Vercel, select the **Flask** framework preset, and use the repository root. Keep the default install and build settings. `pyproject.toml` points to `run:app`, and the Vercel build stages `app/static/` under `public/static/` to keep the existing asset URLs.
+
+Provision a hosted MySQL 8 database reachable from Vercel. In the Vercel project's **Environment Variables**, set these values for Production.
+
+| Variable | Value |
+| --- | --- |
+| `DATABASE_URL` | The hosted database's SQLAlchemy URL using `mysql+pymysql://`. Use your provider's TLS settings and percent-encode reserved characters in the password. |
+| `SECRET_KEY` | A fresh random value from `python -c "import secrets; print(secrets.token_hex(32))"`. |
+| `SESSION_COOKIE_SECURE` | `1` for Vercel HTTPS. |
+
+In your local clone, point `DATABASE_URL` at the same hosted database and set `SECRET_KEY` before initializing it. Run these commands once before the first deployment.
+
+```text
+python -m flask --app run db upgrade
+python -m flask --app run seed-network
+```
+
+Deploy and open Vercel's generated URL to reach the BusAdda sign-in page. If you change the environment variables, redeploy so the new values take effect.
+
 ### Update an existing installation
 
 Keep your existing `.env` and MySQL database. Replace the source files with this version, then run:

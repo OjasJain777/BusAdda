@@ -45,3 +45,7 @@ Thumbs.db
 *.log
 *.swp
 *~
+
+# Vercel build output and local project metadata
+/public/static/
+.vercel/
