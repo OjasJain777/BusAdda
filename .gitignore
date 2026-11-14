@@ -1,0 +1,47 @@
+# Secrets and local database files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite*
+*.sql.gz
+*.sql.bz2
+*.sql.xz
+*.dump
+*.bak
+mysqldump*.sql
+*database-dump*.sql
+instance/
+
+# Python build artifacts and local environments
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local editor, browser and operating-system files
+node_modules/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+*.swp
+*~
